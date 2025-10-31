@@ -91,4 +91,4 @@ final <- ggplot(raw, aes(time, intensity, colour = type, group = type)) +
 print(final)  # View in RStudio
 
 # Uncomment to save publication-quality PDF
-# ggsave("figures/progesterone_plot.pdf", final, width = 6, height = 4)
+ggsave("figures/CYP105Stv_papaverine_HRMS.pdf", final, width = 8, height = 3)
