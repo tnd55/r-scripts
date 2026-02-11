@@ -1,72 +1,59 @@
 # ===============================================================
-# Script: plot_ms_clean.R
-# Purpose: Plot Mass Spectrometry data (m/z vs Intensity)
-# Author: [Your Name]
-# Date: [Date]
+# Script: plot_ms_optimized.R
+# Purpose: High-efficiency Mass Spectrometry Plotting
 # ===============================================================
 
 # ---- Load Packages ----
-if (!require(ggplot2, quietly = TRUE)) install.packages("ggplot2")
-library(ggplot2)
-library(scales)
+# pacman handles loading and installing automatically
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(ggplot2, scales, data.table)
 
-# ---- 1. Helper Function: Scientific Notation Formatter ----
-sci_format <- function(x) {
-  formatted <- scientific_format()(x)               # "1.6e+05"
-  formatted[x == 0] <- "0"                          # keep exact zeros
-  parse(text = gsub("e\\+?", " %*% 10^", formatted))# convert to 1.6 × 10^5
+# ---- 1. Scientific Notation Helper ----
+# Simplified using scales::label_scientific or a cleaner regex
+sci_labeler <- function(x) {
+  ifelse(x == 0, "0", parse(text = gsub("e\\+?", " %*% 10^", scales::scientific(x))))
 }
 
-# ---- 2. User Input ----
-file_path <- "data/CYP105Stv_papaverine.csv"      # update path as needed
-output_path <- "figures/CYP105Stv_papaverine_v3.png"
+# ---- 2. Core Plotting Function ----
+# Abstracting this allows you to loop through multiple files easily
+plot_ms_data <- function(df, mz_range = c(320, 370), max_int = 6e6) {
+  ggplot(df, aes(x = mz, y = intensity)) +
+    geom_line(color = "black", linewidth = 0.5) +
+    scale_x_continuous(
+      limits = mz_range, 
+      breaks = seq(mz_range[1], mz_range[2], by = 5),
+      expand = expansion(mult = c(0, 0.02))
+    ) +
+    scale_y_continuous(
+      limits = c(0, max_int),
+      labels = sci_labeler,
+      expand = expansion(mult = c(0, 0.05))
+    ) +
+    labs(x = "m/z", y = "Abundance") +
+    theme_classic(base_size = 14) + # Classic removes grid & adds lines automatically
+    theme(
+      axis.text = element_text(color = "black"),
+      axis.line = element_line(linewidth = 0.8),
+      plot.margin = margin(10, 20, 10, 10)
+    )
+}
 
-# ---- 3. Read & Validate Data ----
-if (!file.exists(file_path)) stop("❌ File not found: ", file_path)
+# ---- 3. Main Execution ----
+file_path   <- "data/CYP105Stv_papaverine.csv"
+output_path <- "figures/105Stv_PV.png"
 
-data <- read.csv(file_path, header = TRUE)
-if (ncol(data) < 2) stop("❌ CSV must have at least two columns: m/z and intensity")
-
-colnames(data)[1:2] <- c("mz", "intensity")
-
-# ---- 4. Plot Setup ----
-p <- ggplot(data, aes(x = mz, y = intensity)) +
-  geom_line(color = "black", linewidth = 0.5) +
-  labs(
-    x = "m/z",
-    y = "Abundance"
-  ) +
-  scale_x_continuous(
-    limits = c(300, 370),
-    breaks = seq(300, 370, by = 5),
-    expand = c(0, 0)
-  ) +
-  scale_y_continuous(
-    limits = c(0, 6e6),
-    breaks = seq(0, 6e6, by = 2e6),
-    labels = sci_format,
-    expand = c(0, 0)
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    plot.title      = element_text(hjust = 0.5, face = "bold"),
-    axis.line       = element_line(color = "black", linewidth = 0.8),
-    panel.grid      = element_blank(),
-    axis.ticks      = element_line(color = "black", linewidth = 0.5),
-    axis.ticks.length = unit(5, "pt"),
-    axis.text       = element_text(color = "black"),
-    plot.margin     = margin(10, 30, 10, 10)
-  ) +
-  coord_cartesian(clip = "off")
-
-# ---- 5. Display Plot ----
-print(p)
-
-# ---- 6. Save Plot ----
-ggsave(
-  filename = output_path,
-  plot = p,
-  width = 16, height = 3, dpi = 300
-)
-
-message("✅ Plot saved to: ", output_path)
+if (file.exists(file_path)) {
+  # fread is significantly faster than read.csv for large MS datasets
+  ms_data <- fread(file_path, select = c(1, 2), col.names = c("mz", "intensity"))
+  
+  # Generate Plot
+  p <- plot_ms_data(ms_data)
+  
+  print(p)
+  # Save with high-res settings
+  ggsave(output_path, p, width = 10, height = 7, dpi = 600, bg = "white")
+  
+  message("✅ Plot saved: ", output_path)
+} else {
+  stop("❌ File not found.")
+}
