@@ -7,7 +7,7 @@ library(msa)
 library(Biostrings)
 
 #importing fasta file containing protein sequences
-myseq = readAAStringSet("mgryph_phyloseq.fasta")
+myseq = readAAStringSet("data/mgryph_phyloseq.fasta")
 myseq
 
 #performing multiple sequence alignment using clustal omega. Clustalomega is preferred for protein sequences
